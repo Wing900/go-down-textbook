@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 // BookItem 表示一本可下载的教材
 type BookItem struct {
 	ID       string // content_id
@@ -37,20 +39,7 @@ func formatSize(bytes int64) string {
 		return "1KB"
 	}
 	if bytes < 1024*1024 {
-		return formatFloat(float64(bytes)/1024) + "KB"
+		return fmt.Sprintf("%.1fKB", float64(bytes)/1024)
 	}
-	return formatFloat(float64(bytes)/1024/1024) + "MB"
-}
-
-// formatFloat 格式化浮点数，保留一位小数
-func formatFloat(f float64) string {
-	s := ""
-	if f < 10 {
-		s = string(rune('0'+int(f))) + "." + string(rune('0'+int(f*10)%10))
-	} else if f < 100 {
-		s = string(rune('0'+int(f)/10)) + string(rune('0'+int(f)%10)) + "." + string(rune('0'+int(f*10)%10))
-	} else {
-		s = string(rune('0'+int(f)/100)) + string(rune('0'+int(f)/10%10)) + string(rune('0'+int(f)%10))
-	}
-	return s
+	return fmt.Sprintf("%.1fMB", float64(bytes)/1024/1024)
 }

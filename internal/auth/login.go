@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -29,8 +30,10 @@ func LoginViaBrowser() (string, error) {
 	fmt.Println()
 
 	// 10 秒倒计时
+	fmt.Println("  提示：10秒后会自动打开浏览器，请准备登录您的账号")
+	fmt.Println()
 	for i := 10; i > 0; i-- {
-		fmt.Printf("\r  %d 秒后打开浏览器，请准备登录账号... ", i)
+		fmt.Printf("\r  %d 秒后打开浏览器，请准备登录账号.. ", i)
 		time.Sleep(1 * time.Second)
 	}
 	fmt.Println()
@@ -52,17 +55,26 @@ func LoginViaBrowser() (string, error) {
 	fmt.Println("  浏览器已打开，请在浏览器中登录您的账号")
 	fmt.Println("  登录成功后将自动获取 Token，无需任何手动操作")
 	fmt.Println()
-	fmt.Println(util.Dim("  等待登录中... (5 分钟超时)"))
+	fmt.Println(util.Dim("  等待登录中.. (5 分钟超时)"))
 	fmt.Println()
 
-	// 设置 chromedp
+	// 如果 Chrome 已运行，提示关闭（避免进程冲突）
+	if isChromeRunning() {
+		fmt.Println(util.Warn("  检测到 Chrome 已在运行，建议关闭后重试以避免冲突"))
+	}
+
+	// 设置 chromedp（非 headless 模式）
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.ExecPath(chromePath),
 		chromedp.UserDataDir(tmpDir),
+		chromedp.Flag("headless", false),
+		chromedp.Flag("enable-automation", false),
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
 		chromedp.Flag("no-first-run", true),
 		chromedp.Flag("no-default-browser-check", true),
 		chromedp.Flag("disable-extensions", true),
 		chromedp.Flag("disable-popup-blocking", true),
+		chromedp.Flag("remote-allow-origins", "*"),
 	)
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
@@ -96,7 +108,7 @@ func LoginViaBrowser() (string, error) {
 	return token, nil
 }
 
-// pollForToken 轮询 localStorage 检测 ND_UC_AUTH
+// pollForToken 轮询 localStorage 检查 ND_UC_AUTH
 // 使用 chromedp.Evaluate 执行 JS 读取 localStorage
 func pollForToken(ctx context.Context) (string, error) {
 	jsExtract := `(function() {
@@ -124,8 +136,13 @@ func pollForToken(ctx context.Context) (string, error) {
 			return "", fmt.Errorf("等待超时，请重试")
 		case <-ticker.C:
 			var token string
-			if err := chromedp.Run(ctx, chromedp.Evaluate(jsExtract, &token)); err != nil {
-				// 页面可能还在加载，继续等待
+			err := chromedp.Run(ctx, chromedp.Evaluate(jsExtract, &token))
+			if err != nil {
+				// 超时或上下文取消 → 退出
+				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+					return "", fmt.Errorf("登录超时或已取消: %w", err)
+				}
+				// 页面加载中 → 继续等待
 				continue
 			}
 			if token != "" {

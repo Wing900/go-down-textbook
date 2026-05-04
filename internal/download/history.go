@@ -101,6 +101,25 @@ func HasBook(dir string, bookID string) bool {
 	return false
 }
 
+// IsBookAlreadyDownloaded 检查教材是否已下载（历史记录中存在且文件存在）
+func IsBookAlreadyDownloaded(dir string, bookID string) bool {
+	history, err := LoadHistory(dir)
+	if err != nil {
+		return false
+	}
+
+	for _, b := range history.Books {
+		if b.ID == bookID {
+			path := filepath.Join(dir, b.Filename)
+			if _, err := os.Stat(path); err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // RemoveBook 从历史中移除某本教材
 func RemoveBook(dir string, bookID string) error {
 	history, err := LoadHistory(dir)

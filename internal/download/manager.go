@@ -74,6 +74,21 @@ func (m *Manager) downloadSingle(ctx context.Context, book models.BookItem, outp
 		Filename:  book.Filename,
 	}
 
+	// 检查是否已下载
+	if IsBookAlreadyDownloaded(outputDir, book.ID) {
+		filename := book.Filename
+		if filename == "" {
+			filename = sanitizeFilename(book.Title) + ".pdf"
+		}
+		events <- DownloadEvent{
+			Type:      EventDone,
+			BookTitle: book.Title,
+			BookID:    book.ID,
+			Filename:  filename,
+		}
+		return
+	}
+
 	// 获取资源详情
 	detail, err := api.FetchResourceDetails(m.client, book.ID)
 	if err != nil {
