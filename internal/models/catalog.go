@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 // TagBase 标签基础信息
 type TagBase struct {
 	ID          string `json:"id"`
@@ -16,8 +18,33 @@ type TagItem struct {
 }
 
 // DataVersion 教材列表版本信息
+// 注意: API 返回的 urls 是逗号分隔的字符串，不是数组
 type DataVersion struct {
-	URLs []string `json:"urls"`
+	Module       string `json:"module"`
+	ModuleVersion int64 `json:"module_version"`
+	URLsRaw      string `json:"urls"`
+}
+
+// GetURLs 将逗号分隔的 URL 字符串解析为切片
+func (d *DataVersion) GetURLs() []string {
+	if d.URLsRaw == "" {
+		return nil
+	}
+	urls := make([]string, 0)
+	for _, u := range splitAndTrim(d.URLsRaw, ",") {
+		if u != "" {
+			urls = append(urls, u)
+		}
+	}
+	return urls
+}
+
+func splitAndTrim(s, sep string) []string {
+	parts := make([]string, 0)
+	for _, p := range strings.SplitN(s, sep, -1) {
+		parts = append(parts, strings.TrimSpace(p))
+	}
+	return parts
 }
 
 // ResourceItem 资源详情
@@ -45,9 +72,35 @@ type TiItem struct {
 
 // CatalogEntry 教材目录条目
 type CatalogEntry struct {
-	ContentID string   `json:"content_id"`
-	Title     string   `json:"title"`
-	TagList   []string `json:"tag_list"`
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	TagList []Tag  `json:"tag_list"`
+}
+
+// Tag 标签信息（来自 tag_list）
+type Tag struct {
+	TagID         string `json:"tag_id"`
+	TagName       string `json:"tag_name"`
+	TagDimensionID string `json:"tag_dimension_id"`
+}
+
+// GetTagNames 返回所有标签名称
+func (c *CatalogEntry) GetTagNames() []string {
+	names := make([]string, 0, len(c.TagList))
+	for _, t := range c.TagList {
+		names = append(names, t.TagName)
+	}
+	return names
+}
+
+// GetTagByDimension 按维度 ID 获取标签名
+func (c *CatalogEntry) GetTagByDimension(dimID string) string {
+	for _, t := range c.TagList {
+		if t.TagDimensionID == dimID {
+			return t.TagName
+		}
+	}
+	return ""
 }
 
 // TagByType 按类型分组标签

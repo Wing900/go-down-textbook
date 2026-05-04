@@ -178,7 +178,7 @@ func selectBooks(client *api.Client, outputDir string) ([]models.BookItem, error
 	books := make([]models.BookItem, 0, len(filtered))
 	for _, entry := range filtered {
 		books = append(books, models.BookItem{
-			ID:      entry.ContentID,
+			ID:      entry.ID,
 			Title:   entry.Title,
 			Grade:   selectedGrade,
 			Subject: selectedSubject,

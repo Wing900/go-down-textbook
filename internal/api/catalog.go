@@ -26,7 +26,8 @@ func FetchCatalog(client *Client) ([]models.CatalogEntry, error) {
 		return nil, fmt.Errorf("解析数据版本失败: %w", err)
 	}
 
-	if len(version.URLs) == 0 {
+	urls := version.GetURLs()
+	if len(urls) == 0 {
 		return nil, fmt.Errorf("数据版本中无 URL 列表")
 	}
 
@@ -40,7 +41,7 @@ func FetchCatalog(client *Client) ([]models.CatalogEntry, error) {
 
 	sem := make(chan struct{}, 5) // 最多 5 个并发
 
-	for _, dataURL := range version.URLs {
+	for _, dataURL := range urls {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
@@ -88,12 +89,24 @@ func FetchCatalog(client *Client) ([]models.CatalogEntry, error) {
 	return allEntrys, nil
 }
 
+// 标签维度 ID 常量
+const (
+	DimXueDuan = "zxxxd" // 学段: 小学/初中/高中
+	DimNianJi  = "zxxnj" // 年级: 一年级/二年级/...
+	DimXueKe   = "zxxxk" // 学科: 数学/语文/...
+	DimCeCi    = "zxxcc" // 册次: 上册/下册
+	DimBanBen  = "zxxbb" // 版本: 统编版/人教A版/...
+)
+
 // FilterByGrade 按年级筛选教材
 func FilterByGrade(entries []models.CatalogEntry, grade string) []models.CatalogEntry {
 	var result []models.CatalogEntry
 	for _, entry := range entries {
-		if containsTag(entry.TagList, grade) {
-			result = append(result, entry)
+		for _, tag := range entry.TagList {
+			if tag.TagDimensionID == DimNianJi && strings.Contains(tag.TagName, grade) {
+				result = append(result, entry)
+				break
+			}
 		}
 	}
 	return result
@@ -103,8 +116,11 @@ func FilterByGrade(entries []models.CatalogEntry, grade string) []models.Catalog
 func FilterBySubject(entries []models.CatalogEntry, subject string) []models.CatalogEntry {
 	var result []models.CatalogEntry
 	for _, entry := range entries {
-		if containsTag(entry.TagList, subject) {
-			result = append(result, entry)
+		for _, tag := range entry.TagList {
+			if tag.TagDimensionID == DimXueKe && strings.Contains(tag.TagName, subject) {
+				result = append(result, entry)
+				break
+			}
 		}
 	}
 	return result
@@ -121,8 +137,8 @@ func GetGrades(entries []models.CatalogEntry) []string {
 	seen := make(map[string]bool)
 	for _, entry := range entries {
 		for _, tag := range entry.TagList {
-			if isGradeTag(tag) && !seen[tag] {
-				seen[tag] = true
+			if tag.TagDimensionID == DimNianJi && !seen[tag.TagName] {
+				seen[tag.TagName] = true
 			}
 		}
 	}
@@ -157,59 +173,26 @@ func GetSubjects(entries []models.CatalogEntry, grade string) []string {
 	var subjects []string
 
 	for _, entry := range entries {
-		hasGrade := containsTag(entry.TagList, grade)
+		// 检查是否属于该年级
+		hasGrade := false
+		for _, tag := range entry.TagList {
+			if tag.TagDimensionID == DimNianJi && strings.Contains(tag.TagName, grade) {
+				hasGrade = true
+				break
+			}
+		}
 		if !hasGrade {
 			continue
 		}
+
+		// 提取学科
 		for _, tag := range entry.TagList {
-			if isSubjectTag(tag) && !seen[tag] {
-				subjects = append(subjects, tag)
-				seen[tag] = true
+			if tag.TagDimensionID == DimXueKe && !seen[tag.TagName] {
+				subjects = append(subjects, tag.TagName)
+				seen[tag.TagName] = true
 			}
 		}
 	}
 
 	return subjects
-}
-
-// isGradeTag 判断是否为年级标签
-func isGradeTag(tag string) bool {
-	gradeKeywords := []string{
-		"一年级", "二年级", "三年级", "四年级", "五年级", "六年级",
-		"七年级", "八年级", "九年级",
-		"高一", "高二", "高三",
-	}
-	for _, kw := range gradeKeywords {
-		if strings.Contains(tag, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-// isSubjectTag 判断是否为学科标签
-func isSubjectTag(tag string) bool {
-	subjectKeywords := []string{
-		"语文", "数学", "英语", "物理", "化学", "生物",
-		"历史", "地理", "政治", "道德与法治", "科学",
-		"音乐", "美术", "体育", "信息技术", "劳动",
-		"书法", "日语", "俄语", "艺术", "综合实践",
-		"通用技术", "心理健康", "信息科技",
-	}
-	for _, kw := range subjectKeywords {
-		if tag == kw || strings.Contains(tag, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-// containsTag 检查标签列表中是否包含指定标签
-func containsTag(tags []string, target string) bool {
-	for _, tag := range tags {
-		if strings.Contains(tag, target) || strings.Contains(target, tag) {
-			return true
-		}
-	}
-	return false
 }
