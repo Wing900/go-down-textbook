@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/chenyb-go/go-down-textbook/internal/models"
 )
@@ -24,26 +25,25 @@ func FetchResourceDetails(client *Client, contentID string) (*models.ResourceIte
 }
 
 // ParseResourceURL 从 ti_items 中解析下载链接
-// 优先选择 PDF 格式的文件，然后是其他格式
+// 优先选择 ti_is_source_file=true 的源文件
 func ParseResourceURL(tiItems []models.TiItem, hasToken bool) (downloadURL, backupURL string, size int64) {
-	// 优先查找 PDF 文件
+	// 优先查找 is_source_file 的文件
+	for _, item := range tiItems {
+		if item.TiIsSource && item.TiFileFlag != "ebook_mapping" {
+			return resolveItemURLs(item, hasToken)
+		}
+	}
+
+	// 回退：查找 PDF 格式
 	for _, item := range tiItems {
 		if item.TiFormat == "pdf" || item.TiFormat == "PDF" {
 			return resolveItemURLs(item, hasToken)
 		}
 	}
 
-	// 查找 ebook_mapping 标记的文件（排除）
-	// 然后选择第一个非 ebook_mapping 的文件
+	// 最后：第一个非 ebook_mapping 的文件
 	for _, item := range tiItems {
 		if item.TiFileFlag != "ebook_mapping" && item.TiStorage != "" {
-			return resolveItemURLs(item, hasToken)
-		}
-	}
-
-	// 最后选择第一个有存储信息的文件
-	for _, item := range tiItems {
-		if item.TiStorage != "" {
 			return resolveItemURLs(item, hasToken)
 		}
 	}
@@ -56,11 +56,11 @@ func resolveItemURLs(item models.TiItem, hasToken bool) (url, backup string, siz
 	url = ResolveCDNURL(item.TiStorage, hasToken)
 	size = item.TiSize
 
-	// 从 ti_storages 中找备用链接
+	// 从 ti_storages（字符串数组）中找备用链接
 	if len(item.TiStorages) > 0 {
 		for _, s := range item.TiStorages {
-			if s.URL != "" {
-				backup = ResolveCDNURL(s.URL, hasToken)
+			if s != "" {
+				backup = s // ti_storages 中已经是完整 URL
 				break
 			}
 		}
@@ -75,13 +75,12 @@ func resolveItemURLs(item models.TiItem, hasToken bool) (url, backup string, siz
 }
 
 // replaceCDNServer 替换 URL 中的 CDN 服务器域名
-func replaceCDNServer(url string) string {
+func replaceCDNServer(rawURL string) string {
 	for _, server := range ServerList {
 		domain := server + ".ykt.cbern.com.cn"
-		if containsStr(url, domain) {
+		if strings.Contains(rawURL, domain) {
 			alt := RandomServer() + ".ykt.cbern.com.cn"
 			if alt == domain {
-				// 选一个不同的
 				for _, s := range ServerList {
 					if s+".ykt.cbern.com.cn" != domain {
 						alt = s + ".ykt.cbern.com.cn"
@@ -89,37 +88,8 @@ func replaceCDNServer(url string) string {
 					}
 				}
 			}
-			return replaceDomain(url, domain, alt)
+			return strings.Replace(rawURL, domain, alt, 1)
 		}
 	}
-	return url
-}
-
-func containsStr(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsSubstring(s, sub))
-}
-
-func containsSubstring(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}
-
-func replaceDomain(url, old, new string) string {
-	result := ""
-	i := 0
-	for i <= len(url)-len(old) {
-		if url[i:i+len(old)] == old {
-			result += new
-			i += len(old)
-		} else {
-			result += string(url[i])
-			i++
-		}
-	}
-	result += url[i:]
-	return result
+	return rawURL
 }

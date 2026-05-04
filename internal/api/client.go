@@ -102,11 +102,16 @@ func FormatAuthHeader(token string) string {
 }
 
 // ResolveCDNURL 将 CDN 域名模板解析为完整 URL
-// 替换 ${ref-path} 为实际的 CDN 地址
+// ti_storage 格式: "cs_path:${ref-path}/edu_product/esp/assets/..."
+// 需要替换 "cs_path:${ref-path}" 为实际的 CDN 基地址
 func ResolveCDNURL(template string, hasToken bool) string {
 	cdn := PublicCDN
 	if hasToken {
 		cdn = TokenCDN
 	}
-	return strings.ReplaceAll(template, "${ref-path}", cdn)
+	// 替换 cs_path:${ref-path} 为 CDN 地址
+	result := strings.ReplaceAll(template, "cs_path:${ref-path}", cdn)
+	// 也处理只有 ${ref-path} 的情况
+	result = strings.ReplaceAll(result, "${ref-path}", cdn)
+	return result
 }

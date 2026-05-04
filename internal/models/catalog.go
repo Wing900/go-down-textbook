@@ -30,21 +30,18 @@ type ResourceItem struct {
 
 // TiItem 资源文件信息
 type TiItem struct {
-	TiStorage     string            `json:"ti_storage"`
-	TiStorages    []TiStorageRecord `json:"ti_storages"`
-	TiFileFlag    string            `json:"ti_file_flag"`
-	TiIsSource    bool              `json:"ti_is_source_file"`
-	TiFormat      string            `json:"ti_format"`
-	TiMD5         string            `json:"ti_md5"`
-	TiSize        int64             `json:"ti_size"`
+	TiStorage  string   `json:"ti_storage"`
+	TiStorages []string `json:"ti_storages"`
+	TiFileFlag string   `json:"ti_file_flag"`
+	TiIsSource bool     `json:"ti_is_source_file"`
+	TiFormat   string   `json:"ti_format"`
+	TiMD5      string   `json:"ti_md5"`
+	TiSize     int64    `json:"ti_size"`
 }
 
 // TiStorageRecord 存储记录
-type TiStorageRecord struct {
-	URL    string `json:"url"`
-	Domain string `json:"domain"`
-	Bucket string `json:"bucket"`
-}
+// ti_storages 在 API 中是字符串数组，不是对象
+// 但保留此类型以兼容可能的对象格式
 
 // CatalogEntry 教材目录条目
 type CatalogEntry struct {

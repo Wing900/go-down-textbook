@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/chenyb-go/go-down-textbook/internal/models"
 )
@@ -100,7 +101,7 @@ func containsGrade(name string) bool {
 		"五年级上", "五年级下", "六年级上", "六年级下",
 	}
 	for _, kw := range gradeKeywords {
-		if containsSubstring(name, kw) {
+		if strings.Contains(name, kw) {
 			return true
 		}
 	}
