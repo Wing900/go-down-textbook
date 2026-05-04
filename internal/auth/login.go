@@ -2,159 +2,175 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/chromedp/chromedp"
 	"github.com/chenyb-go/go-down-textbook/internal/util"
 )
 
-// LoginViaBrowser 通过浏览器登录获取 token
-// 使用本地 HTTP 服务器 + JS 代码段的方式：
-// 1. 启动本地 HTTP 服务器接收 token
-// 2. 打印 JS 代码段供用户在浏览器 DevTools 中执行
-// 3. JS 代码将 token POST 到本地服务器
+const (
+	smarteduLoginURL = "https://auth.smartedu.cn/uias/login"
+)
+
+// LoginViaBrowser 全自动 Token 获取
+// 1. 10 秒倒计时（告知用户即将打开浏览器）
+// 2. 启动 Chrome（临时 profile），导航到登录页
+// 3. 用户登录后，通过 CDP 自动读取 localStorage 获取 Token
+// 4. 断开 CDP，保存 Token
 func LoginViaBrowser() (string, error) {
 	fmt.Println()
 	fmt.Println(util.Header("=== 登录国家智慧教育平台 ==="))
 	fmt.Println()
 
-	// 创建一个 channel 接收 token
-	tokenCh := make(chan string, 1)
-	errCh := make(chan error, 1)
+	// 10 秒倒计时
+	for i := 10; i > 0; i-- {
+		fmt.Printf("\r  %d 秒后打开浏览器，请准备登录账号... ", i)
+		time.Sleep(1 * time.Second)
+	}
+	fmt.Println()
+	fmt.Println()
 
-	// 启动本地 HTTP 服务器
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	// 创建临时 Chrome profile 目录
+	tmpDir, err := os.MkdirTemp("", "go-down-textbook-chrome-*")
 	if err != nil {
-		return "", fmt.Errorf("启动本地服务器失败: %w", err)
+		return "", fmt.Errorf("创建临时目录失败: %w", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	defer os.RemoveAll(tmpDir) // 清理临时目录
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var body struct {
-			Token string `json:"token"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-
-		if body.Token == "" {
-			http.Error(w, "Token is empty", http.StatusBadRequest)
-			return
-		}
-
-		// 允许 CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-
-		tokenCh <- body.Token
-	})
-
-	// 处理 CORS preflight
-	mux.HandleFunc("/token/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		mux.ServeHTTP(w, r)
-	})
-
-	server := &http.Server{Handler: mux}
-	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-	}()
-
-	// 尝试打开浏览器
-	browserOpened := tryOpenBrowser("https://auth.smartedu.cn/uias/basic_work")
-
-	// 打印说明
-	fmt.Println("请按以下步骤操作：")
-	fmt.Println()
-	if browserOpened {
-		fmt.Println("  1. 浏览器已打开，请登录您的账号")
-	} else {
-		fmt.Println("  1. 请在浏览器中打开: " + util.HTTPLink("https://auth.smartedu.cn/uias/basic_work", "https://auth.smartedu.cn/uias/basic_work"))
+	// 查找 Chrome 可执行文件
+	chromePath := findChrome()
+	if chromePath == "" {
+		return "", fmt.Errorf("未找到 Chrome，请先安装 Google Chrome")
 	}
-	fmt.Println("  2. 登录成功后，按 F12 打开开发者工具")
-	fmt.Println("  3. 切换到 Console（控制台）标签")
-	fmt.Println("  4. 粘贴以下代码并按回车：")
+
+	fmt.Println("  浏览器已打开，请在浏览器中登录您的账号")
+	fmt.Println("  登录成功后将自动获取 Token，无需任何手动操作")
+	fmt.Println()
+	fmt.Println(util.Dim("  等待登录中... (5 分钟超时)"))
 	fmt.Println()
 
-	jsCode := fmt.Sprintf(`fetch("http://127.0.0.1:%d/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:(function(){var k=Object.keys(localStorage).find(k=>k.startsWith("ND_UC_AUTH"));if(!k)return"";var d=JSON.parse(localStorage.getItem(k));return JSON.parse(d.value).access_token})()})}).then(r=>r.json()).then(d=>console.log("Token 已发送！",d))`, port)
+	// 设置 chromedp
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(chromePath),
+		chromedp.UserDataDir(tmpDir),
+		chromedp.Flag("no-first-run", true),
+		chromedp.Flag("no-default-browser-check", true),
+		chromedp.Flag("disable-extensions", true),
+		chromedp.Flag("disable-popup-blocking", true),
+	)
 
-	fmt.Println(util.Dim("─────────────────────────────────────────────────────────"))
-	fmt.Println(util.Bold(jsCode))
-	fmt.Println(util.Dim("─────────────────────────────────────────────────────────"))
-	fmt.Println()
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer allocCancel()
 
-	// 倒计时等待
-	fmt.Println("等待 Token... (5 分钟超时)")
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
 
-	select {
-	case token := <-tokenCh:
-		fmt.Println(util.Success("✓ Token 获取成功!"))
-		// 保存 token
-		if err := SaveToken(token); err != nil {
-			fmt.Fprintf(os.Stderr, "警告: 保存 token 失败: %v\n", err)
+	// 设置总超时
+	ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	// 导航到登录页
+	if err := chromedp.Run(ctx, chromedp.Navigate(smarteduLoginURL)); err != nil {
+		return "", fmt.Errorf("打开登录页失败: %w", err)
+	}
+
+	// 轮询 localStorage 直到找到 token
+	token, err := pollForToken(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println(util.Success("  ✓ Token 获取成功!"))
+
+	// 保存 token
+	if err := SaveToken(token); err != nil {
+		fmt.Fprintf(os.Stderr, "  警告: 保存 token 失败: %v\n", err)
+	}
+
+	return token, nil
+}
+
+// pollForToken 轮询 localStorage 检测 ND_UC_AUTH
+// 使用 chromedp.Evaluate 执行 JS 读取 localStorage
+func pollForToken(ctx context.Context) (string, error) {
+	jsExtract := `(function() {
+		var keys = Object.keys(localStorage);
+		for (var i = 0; i < keys.length; i++) {
+			if (keys[i].indexOf("ND_UC_AUTH") === 0) {
+				try {
+					var data = JSON.parse(localStorage.getItem(keys[i]));
+					var value = JSON.parse(data.value);
+					if (value && value.access_token) {
+						return value.access_token;
+					}
+				} catch(e) {}
+			}
 		}
-		// 关闭服务器
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		server.Shutdown(ctx)
-		return token, nil
+		return "";
+	})()`
 
-	case err := <-errCh:
-		return "", fmt.Errorf("服务器错误: %w", err)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 
-	case <-time.After(5 * time.Minute):
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		server.Shutdown(ctx)
-		return "", fmt.Errorf("等待超时，请重试")
+	for {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("等待超时，请重试")
+		case <-ticker.C:
+			var token string
+			if err := chromedp.Run(ctx, chromedp.Evaluate(jsExtract, &token)); err != nil {
+				// 页面可能还在加载，继续等待
+				continue
+			}
+			if token != "" {
+				return token, nil
+			}
+		}
 	}
 }
 
-// tryOpenBrowser 尝试打开浏览器
-func tryOpenBrowser(url string) bool {
-	var cmd *exec.Cmd
+// findChrome 查找 Chrome 可执行文件路径
+func findChrome() string {
+	// 先检查环境变量
+	if p := os.Getenv("CHROME_PATH"); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
 
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
+		paths := []string{
+			filepath.Join(os.Getenv("PROGRAMFILES"), "Google", "Chrome", "Application", "chrome.exe"),
+			filepath.Join(os.Getenv("PROGRAMFILES(X86)"), "Google", "Chrome", "Application", "chrome.exe"),
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "Google", "Chrome", "Application", "chrome.exe"),
+		}
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
 	case "darwin":
-		cmd = exec.Command("open", url)
+		p := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
 	default:
-		cmd = exec.Command("xdg-open", url)
+		// Linux
+		for _, name := range []string{"google-chrome", "google-chrome-stable", "chromium-browser", "chromium"} {
+			if p, err := exec.LookPath(name); err == nil {
+				return p
+			}
+		}
 	}
 
-	if cmd != nil {
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-		if err := cmd.Start(); err != nil {
-			return false
-		}
-		return true
-	}
-	return false
+	return ""
 }
 
 // isChromeRunning 检查 Chrome 是否正在运行（Windows）
@@ -170,26 +186,4 @@ func isChromeRunning() bool {
 	}
 
 	return strings.Contains(string(output), "chrome.exe")
-}
-
-// findChrome 查找 Chrome 可执行文件路径（Windows）
-func findChrome() string {
-	if runtime.GOOS != "windows" {
-		return ""
-	}
-
-	// 常见的 Chrome 安装路径
-	paths := []string{
-		os.Getenv("PROGRAMFILES") + `\Google\Chrome\Application\chrome.exe`,
-		os.Getenv("PROGRAMFILES(X86)") + `\Google\Chrome\Application\chrome.exe`,
-		os.Getenv("LOCALAPPDATA") + `\Google\Chrome\Application\chrome.exe`,
-	}
-
-	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-
-	return ""
 }
