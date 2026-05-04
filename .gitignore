@@ -27,5 +27,8 @@ Thumbs.db
 # Books output directory
 books/
 
+# Build output
+bin/
+
 # Temporary files
 *.tmp
