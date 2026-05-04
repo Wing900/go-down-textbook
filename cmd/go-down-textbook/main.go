@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -80,8 +82,26 @@ func main() {
 		fmt.Println(util.Success("下载完毕!"))
 		fmt.Println("文件保存在: " + util.FileLink(outputDir, outputDir))
 		fmt.Println()
-		fmt.Println("按 Enter 返回选择教材...")
-		waitForEnter()
+		fmt.Println("按 o 打开目录，按 Enter 返回选择教材...")
+		if strings.TrimSpace(strings.ToLower(readLine())) == "o" {
+			openDir(outputDir)
+		}
+	}
+}
+
+// openDir 在文件管理器中打开指定目录
+func openDir(dir string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", dir)
+	case "darwin":
+		cmd = exec.Command("open", dir)
+	default:
+		cmd = exec.Command("xdg-open", dir)
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "打开目录失败: %v\n", err)
 	}
 }
 
