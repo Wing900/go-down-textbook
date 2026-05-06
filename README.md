@@ -40,7 +40,7 @@
 直接双击或终端运行：
 
 ```bash
-# 下载到默认目录 ./books
+# 下载到程序所在目录下的 books/
 go-down-textbook.exe
 
 # 或指定输出目录

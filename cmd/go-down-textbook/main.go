@@ -32,11 +32,12 @@ func main() {
 	fmt.Println("国家智慧教育平台教材下载工具")
 	fmt.Println()
 
-	// 输出目录
-	outputDir := "./books"
-	if len(os.Args) > 1 {
-		outputDir = os.Args[1]
+	outputDir, err := resolveOutputDir(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "解析输出目录失败: %v\n", err)
+		os.Exit(1)
 	}
+
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "创建输出目录失败: %v\n", err)
 		os.Exit(1)
@@ -89,16 +90,37 @@ func main() {
 	}
 }
 
+// resolveOutputDir 返回稳定的绝对输出目录。
+// 未传参时，默认使用可执行文件同目录下的 books，避免双击运行时落到意外工作目录。
+func resolveOutputDir(args []string) (string, error) {
+	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+		return filepath.Abs(args[0])
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(filepath.Dir(exePath), "books"), nil
+}
+
 // openDir 在文件管理器中打开指定目录
 func openDir(dir string) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "解析目录失败: %v\n", err)
+		return
+	}
+
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("explorer", dir)
+		cmd = exec.Command("explorer", absDir)
 	case "darwin":
-		cmd = exec.Command("open", dir)
+		cmd = exec.Command("open", absDir)
 	default:
-		cmd = exec.Command("xdg-open", dir)
+		cmd = exec.Command("xdg-open", absDir)
 	}
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "打开目录失败: %v\n", err)
