@@ -1,17 +1,19 @@
 BINARY=go-down-textbook
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+GOFLAGS=-trimpath -buildvcs=false
+LDFLAGS=-s -w -X main.version=$(VERSION)
 
 build:
-	go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY).exe ./cmd/go-down-textbook
+	go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY).exe ./cmd/go-down-textbook
 
 package-windows:
 	powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Version $(VERSION)
 
 build-all:
-	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-windows-amd64.exe ./cmd/go-down-textbook
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-darwin-amd64 ./cmd/go-down-textbook
-	GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-darwin-arm64 ./cmd/go-down-textbook
-	GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-linux-amd64 ./cmd/go-down-textbook
+	GOOS=windows GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-windows-amd64.exe ./cmd/go-down-textbook
+	GOOS=darwin  GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-darwin-amd64 ./cmd/go-down-textbook
+	GOOS=darwin  GOARCH=arm64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-darwin-arm64 ./cmd/go-down-textbook
+	GOOS=linux   GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-linux-amd64 ./cmd/go-down-textbook
 
 clean:
 	rm -rf bin/

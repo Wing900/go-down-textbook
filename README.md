@@ -1,6 +1,18 @@
-# go-down-textbook
+<div align="center">
+  <img src="./logo.jpg" alt="go-down-textbook logo" width="140" />
+  <h1>go-down-textbook</h1>
+  <p><strong>国家智慧教育平台教材下载工具</strong></p>
+  <p>自动登录、交互选书、批量下载 PDF，用更轻量的方式把教材下载这件事做得省心一点。</p>
+  <p>
+    <a href="https://github.com/Wing900/go-down-textbook/releases">下载 Releases</a> ·
+    <span>Windows / macOS / Linux</span> ·
+    <span>CLI 开箱即用</span>
+  </p>
+</div>
 
-国家智慧教育平台教材下载工具 — 批量下载中小学教材 PDF。
+## 简介
+
+`go-down-textbook` 是一个面向普通用户的教材下载工具。运行后会自动打开浏览器完成登录，再按年级、学科、教材名逐步选择需要的教材，最后并发下载为 PDF。
 
 ## 技术原理
 
@@ -21,6 +33,8 @@
 - **内存极简** — 流式下载 + 32KB 固定缓冲区，不将 PDF 整体加载到内存，理论上可处理任意大小文件
 - **跨平台** — Windows / macOS / Linux 全支持
 - **断点续感知** — 已下载的教材自动跳过，不重复下载
+- **目录直达** — 下载完成后按 `o` 可直接打开当前教材目录
+- **发布更瘦** — 构建默认精简符号与路径信息，分发体积更小
 
 ## 教程
 

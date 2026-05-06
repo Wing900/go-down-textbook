@@ -70,10 +70,17 @@ func LoginViaBrowser() (string, error) {
 		chromedp.Flag("headless", false),
 		chromedp.Flag("enable-automation", false),
 		chromedp.Flag("disable-blink-features", "AutomationControlled"),
+		chromedp.Flag("disable-background-networking", true),
+		chromedp.Flag("disable-background-timer-throttling", true),
+		chromedp.Flag("disable-component-update", true),
 		chromedp.Flag("no-first-run", true),
 		chromedp.Flag("no-default-browser-check", true),
+		chromedp.Flag("disable-default-apps", true),
 		chromedp.Flag("disable-extensions", true),
 		chromedp.Flag("disable-popup-blocking", true),
+		chromedp.Flag("disable-sync", true),
+		chromedp.Flag("metrics-recording-only", true),
+		chromedp.Flag("mute-audio", true),
 		chromedp.Flag("remote-allow-origins", "*"),
 	)
 

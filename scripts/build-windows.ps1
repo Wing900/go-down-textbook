@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 python (Join-Path $repoRoot "scripts\make_windows_icon.py") (Join-Path $repoRoot "logo.jpg") $iconPath
 
 & $goExe run github.com/akavel/rsrc@latest -ico $iconPath -o $resourcePath
-& $goExe build -ldflags "-s -w -X main.version=$Version" -o $exePath .\cmd\go-down-textbook
+& $goExe build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$Version" -o $exePath .\cmd\go-down-textbook
 Remove-Item -Force $resourcePath -ErrorAction SilentlyContinue
 
 Copy-Item (Join-Path $repoRoot "README.md") (Join-Path $stageRoot "README.md")

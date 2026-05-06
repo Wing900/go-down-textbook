@@ -25,7 +25,7 @@ const (
 )
 
 var reader = bufio.NewReader(os.Stdin)
-var version = "v3.0.1"
+var version = "v3.0.2"
 
 func main() {
 	fmt.Println(util.Header(appName + " " + version))

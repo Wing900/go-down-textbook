@@ -32,7 +32,15 @@ func NewManager(client *api.Client, concurrency int) *Manager {
 // DownloadBooks 并发下载多本教材
 // 返回事件 channel，调用方可监听进度
 func (m *Manager) DownloadBooks(ctx context.Context, books []models.BookItem, outputDir string) <-chan DownloadEvent {
-	events := make(chan DownloadEvent, len(books)*10)
+	bufferSize := len(books)
+	if bufferSize < 16 {
+		bufferSize = 16
+	}
+	if bufferSize > 64 {
+		bufferSize = 64
+	}
+
+	events := make(chan DownloadEvent, bufferSize)
 
 	go func() {
 		defer close(events)
