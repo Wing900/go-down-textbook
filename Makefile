@@ -8,10 +8,10 @@ package-windows:
 	powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Version $(VERSION)
 
 build-all:
-	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/$(BINARY)-windows-amd64.exe ./cmd/go-down-textbook
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w" -o bin/$(BINARY)-darwin-amd64 ./cmd/go-down-textbook
-	GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w" -o bin/$(BINARY)-darwin-arm64 ./cmd/go-down-textbook
-	GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w" -o bin/$(BINARY)-linux-amd64 ./cmd/go-down-textbook
+	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-windows-amd64.exe ./cmd/go-down-textbook
+	GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-darwin-amd64 ./cmd/go-down-textbook
+	GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-darwin-arm64 ./cmd/go-down-textbook
+	GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY)-linux-amd64 ./cmd/go-down-textbook
 
 clean:
 	rm -rf bin/
