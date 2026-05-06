@@ -26,7 +26,7 @@
 
 ### 1. 下载
 
-从 [Releases](https://github.com/Wing900/go-down-textbook/releases) 下载对应系统的可执行文件。
+从 [Releases](https://github.com/Wing900/go-down-textbook/releases) 下载对应系统的可执行文件或压缩包。
 
 | 文件 | 平台 |
 |------|------|
@@ -62,3 +62,22 @@ go-down-textbook.exe D:\我的教材
 ```bash
 go install github.com/pdfcpu/pdfcpu/cmd/pdfcpu@latest
 ```
+
+## 开发打包
+
+Windows 分发包会使用仓库根目录的 `logo.jpg` 自动生成程序图标，并将图标嵌入 `go-down-textbook.exe`：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
+```
+
+也可以直接执行：
+
+```bash
+make package-windows
+```
+
+产物输出到 `dist/`：
+
+- `dist/go-down-textbook-windows-amd64/go-down-textbook.exe`
+- `dist/go-down-textbook-windows-amd64.zip`

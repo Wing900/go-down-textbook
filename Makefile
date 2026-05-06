@@ -4,6 +4,9 @@ VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 build:
 	go build -ldflags "-s -w -X main.version=$(VERSION)" -o bin/$(BINARY).exe ./cmd/go-down-textbook
 
+package-windows:
+	powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Version $(VERSION)
+
 build-all:
 	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/$(BINARY)-windows-amd64.exe ./cmd/go-down-textbook
 	GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w" -o bin/$(BINARY)-darwin-amd64 ./cmd/go-down-textbook
@@ -20,4 +23,4 @@ test:
 	go vet ./...
 	go build ./...
 
-.PHONY: build build-all clean run test
+.PHONY: build build-all clean run test package-windows

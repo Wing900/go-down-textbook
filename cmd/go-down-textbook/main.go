@@ -21,14 +21,14 @@ import (
 )
 
 const (
-	appName    = "go-down-textbook"
-	appVersion = "v0.2.0"
+	appName = "go-down-textbook"
 )
 
 var reader = bufio.NewReader(os.Stdin)
+var version = "v3.0.1"
 
 func main() {
-	fmt.Println(util.Header(appName + " " + appVersion))
+	fmt.Println(util.Header(appName + " " + version))
 	fmt.Println("国家智慧教育平台教材下载工具")
 	fmt.Println()
 

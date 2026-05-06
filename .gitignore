@@ -29,6 +29,9 @@ books/
 
 # Build output
 bin/
+dist/
+assets/
+*.syso
 
 # Temporary files
 *.tmp
