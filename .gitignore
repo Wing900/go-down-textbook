@@ -32,6 +32,7 @@ bin/
 dist/
 assets/
 *.syso
+tools/
 
 # Temporary files
 *.tmp
