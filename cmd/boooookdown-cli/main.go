@@ -20,16 +20,14 @@ import (
 	"github.com/chenyb-go/go-down-textbook/internal/util"
 )
 
-const (
-	appName = "go-down-textbook"
-)
+const appName = "BoooookDown CLI"
 
 var reader = bufio.NewReader(os.Stdin)
 var version = "v3.0.2"
 
 func main() {
 	fmt.Println(util.Header(appName + " " + version))
-	fmt.Println("国家智慧教育平台教材下载工具")
+	fmt.Println("BoooookDown 教材下载工具")
 	fmt.Println()
 
 	outputDir, err := resolveOutputDir(os.Args[1:])

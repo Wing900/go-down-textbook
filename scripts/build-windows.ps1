@@ -11,13 +11,15 @@ if (-not (Test-Path $goExe)) {
 }
 
 $distRoot = Join-Path $repoRoot "dist"
-$stageRoot = Join-Path $distRoot "go-down-textbook-windows-amd64"
+$stageRoot = Join-Path $distRoot "BoooookDown-windows-amd64"
 $buildRoot = Join-Path $distRoot "build-tmp"
+$binRoot = Join-Path $repoRoot "bin"
 $iconPath = Join-Path $repoRoot "assets\app.ico"
-$resourcePath = Join-Path $repoRoot "cmd\go-down-textbook\rsrc_windows_amd64.syso"
-$rawExePath = Join-Path $buildRoot "go-down-textbook.exe"
-$exePath = Join-Path $stageRoot "go-down-textbook.exe"
-$zipPath = Join-Path $distRoot "go-down-textbook-windows-amd64.zip"
+$resourcePath = Join-Path $repoRoot "cmd\boooookdown\rsrc_windows_amd64.syso"
+$rawExePath = Join-Path $buildRoot "BoooookDown.exe"
+$exePath = Join-Path $stageRoot "BoooookDown.exe"
+$binExePath = Join-Path $binRoot "BoooookDown-windows-amd64.exe"
+$zipPath = Join-Path $distRoot "BoooookDown-windows-amd64.zip"
 $repoUpx = Join-Path $repoRoot "tools\upx\upx.exe"
 $upxExe = $null
 
@@ -31,6 +33,7 @@ if (Test-Path $repoUpx) {
 }
 
 New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $binRoot | Out-Null
 Remove-Item -Recurse -Force $buildRoot -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $buildRoot | Out-Null
 Remove-Item -Recurse -Force $stageRoot -ErrorAction SilentlyContinue
@@ -39,7 +42,7 @@ New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 python (Join-Path $repoRoot "scripts\make_windows_icon.py") (Join-Path $repoRoot "logo.jpg") $iconPath
 
 & $goExe run github.com/akavel/rsrc@latest -ico $iconPath -o $resourcePath
-& $goExe build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$Version" -o $rawExePath .\cmd\go-down-textbook
+& $goExe build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$Version" -o $rawExePath .\cmd\boooookdown
 Remove-Item -Force $resourcePath -ErrorAction SilentlyContinue
 
 if ($upxExe) {
@@ -62,6 +65,7 @@ if ($upxExe) {
 }
 
 Copy-Item $rawExePath $exePath -Force
+Copy-Item $rawExePath $binExePath -Force
 
 Copy-Item (Join-Path $repoRoot "README.md") (Join-Path $stageRoot "README.md")
 
@@ -71,4 +75,5 @@ if (Test-Path $zipPath) {
 Compress-Archive -Path (Join-Path $stageRoot "*") -DestinationPath $zipPath
 
 Write-Output $exePath
+Write-Output $binExePath
 Write-Output $zipPath

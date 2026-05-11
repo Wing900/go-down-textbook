@@ -50,7 +50,7 @@ func loginViaBrowser(stdout io.Writer, stderr io.Writer) (string, error) {
 	fmt.Fprintln(stdout)
 
 	// 创建临时 Chrome profile 目录
-	tmpDir, err := os.MkdirTemp("", "go-down-textbook-chrome-*")
+	tmpDir, err := os.MkdirTemp("", "BoooookDown-chrome-*")
 	if err != nil {
 		return "", fmt.Errorf("创建临时目录失败: %w", err)
 	}

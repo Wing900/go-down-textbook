@@ -1,25 +1,25 @@
 <div align="center">
-  <img src="./logo.jpg" alt="go-down-textbook logo" width="140" />
-  <h1>go-down-textbook</h1>
+  <img src="./logo.jpg" alt="BoooookDown logo" width="140" />
+  <h1>BoooookDown</h1>
   <p><strong>国家智慧教育平台教材下载工具</strong></p>
   <p>自动登录、交互选书、批量下载 PDF，用更轻量的方式把教材下载这件事做得省心一点。</p>
   <p>
-    <a href="https://github.com/Wing900/go-down-textbook/releases">下载 Releases</a> ·
+    <a href="https://github.com/Wing900/BoooookDown/releases">下载 Releases</a> ·
     <span>Windows / macOS / Linux</span> ·
-    <span>CLI 开箱即用</span>
+    <span>TUI / CLI 开箱即用</span>
   </p>
 </div>
 
 ## 简介
 
-`go-down-textbook` 是一个面向普通用户的教材下载工具。运行后会自动打开浏览器完成登录，再按年级、学科、教材名逐步选择需要的教材，最后并发下载为 PDF。
+`BoooookDown` 是一个面向普通用户的教材下载工具。运行后会自动打开浏览器完成登录，再按年级、学科、教材名逐步选择需要的教材，最后并发下载为 PDF。
 
 ## 技术原理
 
 ```
-用户 → CLI → API 客户端 → 智慧教育平台 API → CDN 下载 PDF
-         ↓
-    chromedp 自动登录获取 Token
+用户 → TUI / CLI → API 客户端 → 智慧教育平台 API → CDN 下载 PDF
+             ↓
+        chromedp 自动登录获取 Token
 ```
 
 1. **登录** — 调用 chromedp 启动本地 Chrome，用户登录后通过 CDP 协议从 `localStorage` 自动提取 `access_token`，无需手动复制粘贴
@@ -40,14 +40,14 @@
 
 ### 1. 下载
 
-从 [Releases](https://github.com/Wing900/go-down-textbook/releases) 下载对应系统的可执行文件或压缩包。
+从 [Releases](https://github.com/Wing900/BoooookDown/releases) 下载对应系统的可执行文件或压缩包。
 
 | 文件 | 平台 |
 |------|------|
-| `go-down-textbook-windows-amd64.exe` | Windows 10/11 64位 |
-| `go-down-textbook-darwin-amd64` | macOS Intel |
-| `go-down-textbook-darwin-arm64` | macOS Apple Silicon |
-| `go-down-textbook-linux-amd64` | Linux 64位 |
+| `BoooookDown-windows-amd64.exe` | Windows 10/11 64位 |
+| `BoooookDown-darwin-amd64` | macOS Intel |
+| `BoooookDown-darwin-arm64` | macOS Apple Silicon |
+| `BoooookDown-linux-amd64` | Linux 64位 |
 
 ### 2. 运行
 
@@ -55,10 +55,10 @@
 
 ```bash
 # 下载到程序所在目录下的 books/
-go-down-textbook.exe
+BoooookDown.exe
 
 # 或指定输出目录
-go-down-textbook.exe D:\我的教材
+BoooookDown.exe D:\我的教材
 ```
 
 ### 3. 登录
@@ -79,7 +79,7 @@ go install github.com/pdfcpu/pdfcpu/cmd/pdfcpu@latest
 
 ## 开发打包
 
-Windows 分发包会使用仓库根目录的 `logo.jpg` 自动生成程序图标，并将图标嵌入 `go-down-textbook.exe`：
+Windows 分发包会使用仓库根目录的 `logo.jpg` 自动生成程序图标，并将图标嵌入 `BoooookDown.exe`：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
@@ -93,5 +93,17 @@ make package-windows
 
 产物输出到 `dist/`：
 
-- `dist/go-down-textbook-windows-amd64/go-down-textbook.exe`
-- `dist/go-down-textbook-windows-amd64.zip`
+- `dist/BoooookDown-windows-amd64/BoooookDown.exe`
+- `dist/BoooookDown-windows-amd64.zip`
+
+如需一次性生成 Windows / macOS / Linux 的分发包：
+
+```bash
+make package-all
+```
+
+说明：
+
+- `bin/` 保存最新构建出来的各平台二进制
+- `dist/` 保存可直接分发的打包产物
+- Windows 的 `bin/BoooookDown-windows-amd64.exe` 会同步为带 logo 的打包版本

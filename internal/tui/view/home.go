@@ -16,7 +16,7 @@ type HomeData struct {
 }
 
 func RenderHome(s Styles, d HomeData) string {
-	header := s.Title.Render("go-down-textbook") + "  " + s.Muted.Render(d.Version)
+	header := s.Title.Render("BoooookDown") + "  " + s.Muted.Render(d.Version)
 	info := []string{
 		fmt.Sprintf("%s  %s", s.Label.Render("保存到"), s.Value.Render(d.OutputDir)),
 		fmt.Sprintf("%s  %s", s.Label.Render("登录状态"), common.RenderBool(s.Success, s.Accent, d.LoggedIn)),
@@ -26,7 +26,7 @@ func RenderHome(s Styles, d HomeData) string {
 		info = append(info, s.Danger.Render("读取状态失败: "+d.HomeErr))
 	}
 	body := s.Panel.Width(common.MaxInt(42, d.Width-6)).Render(strings.Join([]string{
-		header, "国家智慧教育平台教材下载工具", "", strings.Join(info, "\n"), "",
+		header, "BoooookDown 教材下载工具", "", strings.Join(info, "\n"), "",
 		renderMenu(s, d.MenuItems, d.MenuIndex), "", s.Info.Render("进入后会动态获取目录，并按年级、学科和教材滚动选择。"),
 	}, "\n"))
 	return s.Doc.Render(body + "\n" + renderFooter(s, d.StatusLine, d.Width))

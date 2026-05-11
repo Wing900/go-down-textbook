@@ -28,9 +28,9 @@ func getConfigDir() (string, error) {
 
 	switch runtime.GOOS {
 	case "windows":
-		return filepath.Join(home, ".config", "go-down-textbook"), nil
+		return filepath.Join(home, ".config", "BoooookDown"), nil
 	default:
-		return filepath.Join(home, ".config", "go-down-textbook"), nil
+		return filepath.Join(home, ".config", "BoooookDown"), nil
 	}
 }
 
