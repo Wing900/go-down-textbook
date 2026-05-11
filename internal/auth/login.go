@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/chenyb-go/go-down-textbook/internal/util"
+	"github.com/chromedp/chromedp"
 )
 
 const (
@@ -25,19 +26,28 @@ const (
 // 3. 用户登录后，通过 CDP 自动读取 localStorage 获取 Token
 // 4. 断开 CDP，保存 Token
 func LoginViaBrowser() (string, error) {
-	fmt.Println()
-	fmt.Println(util.Header("=== 登录国家智慧教育平台 ==="))
-	fmt.Println()
+	return loginViaBrowser(os.Stdout, os.Stderr)
+}
+
+// LoginViaBrowserQuiet 在不向终端输出提示的情况下完成登录流程。
+func LoginViaBrowserQuiet() (string, error) {
+	return loginViaBrowser(io.Discard, io.Discard)
+}
+
+func loginViaBrowser(stdout io.Writer, stderr io.Writer) (string, error) {
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, util.Header("=== 登录国家智慧教育平台 ==="))
+	fmt.Fprintln(stdout)
 
 	// 10 秒倒计时
-	fmt.Println("  提示：10秒后会自动打开浏览器，请准备登录您的账号")
-	fmt.Println()
+	fmt.Fprintln(stdout, "  提示：10秒后会自动打开浏览器，请准备登录您的账号")
+	fmt.Fprintln(stdout)
 	for i := 10; i > 0; i-- {
-		fmt.Printf("\r  %d 秒后打开浏览器，请准备登录账号.. ", i)
+		fmt.Fprintf(stdout, "\r  %d 秒后打开浏览器，请准备登录账号.. ", i)
 		time.Sleep(1 * time.Second)
 	}
-	fmt.Println()
-	fmt.Println()
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout)
 
 	// 创建临时 Chrome profile 目录
 	tmpDir, err := os.MkdirTemp("", "go-down-textbook-chrome-*")
@@ -52,15 +62,15 @@ func LoginViaBrowser() (string, error) {
 		return "", fmt.Errorf("未找到 Chrome，请先安装 Google Chrome")
 	}
 
-	fmt.Println("  浏览器已打开，请在浏览器中登录您的账号")
-	fmt.Println("  登录成功后将自动获取 Token，无需任何手动操作")
-	fmt.Println()
-	fmt.Println(util.Dim("  等待登录中.. (5 分钟超时)"))
-	fmt.Println()
+	fmt.Fprintln(stdout, "  浏览器已打开，请在浏览器中登录您的账号")
+	fmt.Fprintln(stdout, "  登录成功后将自动获取 Token，无需任何手动操作")
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, util.Dim("  等待登录中.. (5 分钟超时)"))
+	fmt.Fprintln(stdout)
 
 	// 如果 Chrome 已运行，提示关闭（避免进程冲突）
 	if isChromeRunning() {
-		fmt.Println(util.Warn("  检测到 Chrome 已在运行，建议关闭后重试以避免冲突"))
+		fmt.Fprintln(stdout, util.Warn("  检测到 Chrome 已在运行，建议关闭后重试以避免冲突"))
 	}
 
 	// 设置 chromedp（非 headless 模式）
@@ -105,11 +115,11 @@ func LoginViaBrowser() (string, error) {
 		return "", err
 	}
 
-	fmt.Println(util.Success("  ✓ Token 获取成功!"))
+	fmt.Fprintln(stdout, util.Success("  ✓ Token 获取成功!"))
 
 	// 保存 token
 	if err := SaveToken(token); err != nil {
-		fmt.Fprintf(os.Stderr, "  警告: 保存 token 失败: %v\n", err)
+		fmt.Fprintf(stderr, "  警告: 保存 token 失败: %v\n", err)
 	}
 
 	return token, nil
