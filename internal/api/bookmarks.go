@@ -48,7 +48,7 @@ func FetchBookmarks(client *Client, contentID string) ([]Bookmark, error) {
 	var ebookMappingURL string
 	for _, item := range detail.TiItems {
 		if item.TiFileFlag == "ebook_mapping" && item.TiStorage != "" {
-			ebookMappingURL = ResolveCDNURL(item.TiStorage, client.Token != "")
+			ebookMappingURL = ResolveCDNURL(item.TiStorage, client.CurrentToken() != "")
 			break
 		}
 	}

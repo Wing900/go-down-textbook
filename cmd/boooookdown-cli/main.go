@@ -43,13 +43,15 @@ func main() {
 
 	for {
 		// Step 1: 登录
-		token, err := ensureLogin()
+		session := auth.NewSessionManager(auth.LoginViaBrowser)
+		token, err := ensureLogin(session)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "登录失败: %v\n", err)
 			os.Exit(1)
 		}
 
 		client := api.NewClient(token)
+		client.SetUnauthorizedHandler(session.RefreshToken)
 
 		// Step 2: 展示已下载的书
 		showDownloaded(outputDir)
@@ -126,17 +128,24 @@ func openDir(dir string) {
 }
 
 // ensureLogin 确保有有效的 token
-func ensureLogin() (string, error) {
-	// 先检查缓存的 token
-	token, err := auth.GetToken()
-	if err == nil && token != "" {
-		fmt.Println(util.Success("已使用缓存的 Token"))
-		return token, nil
+func ensureLogin(session *auth.SessionManager) (string, error) {
+	cachedToken, err := auth.GetToken()
+	if err != nil {
+		return "", err
 	}
 
-	// 需要登录
-	fmt.Println("未检测到登录状态，即将开始登录流程...")
-	return auth.LoginViaBrowser()
+	token, err := session.EnsureToken()
+	if err != nil {
+		return "", err
+	}
+
+	if cachedToken != "" {
+		fmt.Println(util.Success("已加载登录态，遇到过期会自动重新登录"))
+	} else {
+		fmt.Println(util.Success("登录成功，后续遇到过期会自动重新登录"))
+	}
+
+	return token, nil
 }
 
 // showDownloaded 展示已下载的教材列表

@@ -5,13 +5,19 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
+// UnauthorizedHandler 在收到 401 时负责刷新 token。
+type UnauthorizedHandler func(invalidatedToken string) (string, error)
+
 // Client 封装 HTTP 客户端，自动处理认证和重试
 type Client struct {
-	HTTPClient *http.Client
-	Token      string
+	HTTPClient          *http.Client
+	Token               string
+	mu                  sync.RWMutex
+	unauthorizedHandler UnauthorizedHandler
 }
 
 // NewClient 创建新的 API 客户端
@@ -24,6 +30,32 @@ func NewClient(token string) *Client {
 	}
 }
 
+// SetUnauthorizedHandler 设置 401 自动恢复回调。
+func (c *Client) SetUnauthorizedHandler(handler UnauthorizedHandler) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.unauthorizedHandler = handler
+}
+
+// CurrentToken 返回当前 token。
+func (c *Client) CurrentToken() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.Token
+}
+
+func (c *Client) setToken(token string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Token = token
+}
+
+func (c *Client) unauthorizedRecovery() UnauthorizedHandler {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.unauthorizedHandler
+}
+
 // GetJSON 执行 GET 请求并返回响应体
 // 自动添加认证头，5xx 错误自动重试（最多 3 次）
 func (c *Client) GetJSON(url string) ([]byte, error) {
@@ -33,18 +65,7 @@ func (c *Client) GetJSON(url string) ([]byte, error) {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
 
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return nil, fmt.Errorf("创建请求失败: %w", err)
-		}
-
-		// 添加认证头
-		if c.Token != "" {
-			req.Header.Set("X-ND-AUTH", FormatAuthHeader(c.Token))
-		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-
-		resp, err := c.HTTPClient.Do(req)
+		resp, err := c.doGet(url, true)
 		if err != nil {
 			lastErr = fmt.Errorf("请求失败: %w", err)
 			continue
@@ -73,17 +94,7 @@ func (c *Client) GetJSON(url string) ([]byte, error) {
 
 // DownloadStream 执行 GET 请求并返回响应体流（用于大文件下载）
 func (c *Client) DownloadStream(url string) (io.ReadCloser, int64, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, 0, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	if c.Token != "" {
-		req.Header.Set("X-ND-AUTH", FormatAuthHeader(c.Token))
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doGet(url, true)
 	if err != nil {
 		return nil, 0, fmt.Errorf("请求失败: %w", err)
 	}
@@ -94,6 +105,46 @@ func (c *Client) DownloadStream(url string) (io.ReadCloser, int64, error) {
 	}
 
 	return resp.Body, resp.ContentLength, nil
+}
+
+func (c *Client) doGet(url string, allowRefresh bool) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	token := c.CurrentToken()
+	if token != "" {
+		req.Header.Set("X-ND-AUTH", FormatAuthHeader(token))
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized || !allowRefresh {
+		return resp, nil
+	}
+
+	handler := c.unauthorizedRecovery()
+	if handler == nil {
+		return resp, nil
+	}
+
+	resp.Body.Close()
+
+	newToken, err := handler(token)
+	if err != nil {
+		return nil, fmt.Errorf("登录状态已失效，刷新失败: %w", err)
+	}
+	if newToken == "" {
+		return nil, fmt.Errorf("登录状态已失效，刷新后仍未获得 token")
+	}
+
+	c.setToken(newToken)
+	return c.doGet(url, false)
 }
 
 // FormatAuthHeader 格式化认证头

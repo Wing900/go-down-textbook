@@ -11,15 +11,14 @@ import (
 )
 
 func (s *Service) EnsureCatalog() (*CatalogData, error) {
-	token, err := auth.GetToken()
-	if err != nil || token == "" {
-		token, err = auth.LoginViaBrowserQuiet()
-		if err != nil {
-			return nil, err
-		}
+	session := auth.NewSessionManager(auth.LoginViaBrowserQuiet)
+	token, err := session.EnsureToken()
+	if err != nil {
+		return nil, err
 	}
 
 	client := api.NewClient(token)
+	client.SetUnauthorizedHandler(session.RefreshToken)
 	entries, err := api.FetchCatalog(client)
 	if err != nil {
 		return nil, err

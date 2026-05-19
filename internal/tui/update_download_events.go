@@ -19,7 +19,12 @@ func (m *model) handleDownloadUpdate(update app.DownloadUpdate) (tea.Model, tea.
 		m.downloading = false
 		m.downloadDone = true
 		m.currentPercent = 1
-		m.currentTitle = "本次下载已完成"
+		if update.Error != nil {
+			m.currentTitle = "下载流程提前结束"
+			m.pushLog("下载流程失败: " + update.Error.Error())
+		} else {
+			m.currentTitle = "本次下载已完成"
+		}
 		m.refreshHome()
 		return m, nil
 	}

@@ -2,17 +2,32 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sync"
 
 	"github.com/chenyb-go/go-down-textbook/internal/api"
+	"github.com/chenyb-go/go-down-textbook/internal/auth"
 	"github.com/chenyb-go/go-down-textbook/internal/download"
 	"github.com/chenyb-go/go-down-textbook/internal/models"
 	"github.com/chenyb-go/go-down-textbook/internal/pdf"
 )
 
 func (s *Service) StartDownload(ctx context.Context, token string, books []models.BookItem) <-chan DownloadUpdate {
+	session := auth.NewSessionManager(auth.LoginViaBrowserQuiet)
+	if token == "" {
+		var err error
+		token, err = session.EnsureToken()
+		if err != nil {
+			updates := make(chan DownloadUpdate, 1)
+			updates <- DownloadUpdate{Type: UpdateFinished, Error: fmt.Errorf("获取登录态失败: %w", err)}
+			close(updates)
+			return updates
+		}
+	}
+
 	client := api.NewClient(token)
+	client.SetUnauthorizedHandler(session.RefreshToken)
 	source := download.NewManager(client, 3).DownloadBooks(ctx, books, s.OutputDir)
 	updates := make(chan DownloadUpdate, 32)
 

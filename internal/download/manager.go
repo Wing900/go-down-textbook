@@ -110,7 +110,7 @@ func (m *Manager) downloadSingle(ctx context.Context, book models.BookItem, outp
 	}
 
 	// 解析下载链接
-	hasToken := m.client.Token != ""
+	hasToken := m.client.CurrentToken() != ""
 	downloadURL, backupURL, _ := api.ParseResourceURL(detail.TiItems, hasToken)
 
 	if downloadURL == "" {
